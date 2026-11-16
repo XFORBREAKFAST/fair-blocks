@@ -1,0 +1,18 @@
+{
+  "name": "fair-blocks",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fair Blocks — puzzle balok fair + versus LAN",
+  "scripts": {
+    "android:add": "cap add android",
+    "android:patch": "node scripts/patch-android.js",
+    "android:sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}

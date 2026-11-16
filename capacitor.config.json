@@ -1,0 +1,8 @@
+{
+  "appId": "com.dzaky.fairblocks",
+  "appName": "Fair Blocks",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#b37f55"
+  }
+}

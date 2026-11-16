@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient android:type="radial" android:gradientRadius="140%p" android:centerX="0.5" android:centerY="0.15"
+                android:startColor="#8FC8FF" android:centerColor="#6C8CFF" android:endColor="#6A4FE0"/>
+        </shape>
+    </item>
+    <item android:width="220dp" android:height="220dp" android:gravity="center">
+        <bitmap android:src="@drawable/splash_logo" android:gravity="fill"/>
+    </item>
+</layer-list>
