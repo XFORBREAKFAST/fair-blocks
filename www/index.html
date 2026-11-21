@@ -624,6 +624,7 @@ body.ultra .score.bump{animation:none}
   <div id="diagSet">
     <div class="dgHint">Main 1 menit, lalu tekan <b>Salin laporan</b> dan kirim. Matikan efek satu-satu buat cari biang lag.</div>
     <div class="dgKills" id="dgKills"></div>
+    <button class="btn gy sm" id="dgAuto">Tes otomatis (±45 dtk)</button>
     <button class="btn gy sm" id="dgCopy">Salin laporan</button>
   </div>
   <div class="row" style="color:#998">Rotasi <span>OFF (aturan tetap)</span></div>
@@ -2702,7 +2703,10 @@ function diagReport(){
     'efek rata2 ms: '+Object.entries(DIAG.last).map(([k,v])=>k+'='+v.ms.toFixed(1)).join(' '),
     '--- frame patah terakhir (ms | js ms | anim | partikel | mode | efek) ---',
     ...DIAG.log.map(e=>`${e.ms} | ${e.js} | ${e.anim} | ${e.parts} | ${e.ctx} | ${e.fx}`),
-    'KO terakhir: '+(ko?JSON.stringify(ko):'-')
+    'KO terakhir: '+(ko?JSON.stringify(ko):'-'),
+    '--- TES OTOMATIS ---',
+    ...(DIAG.auto.length?DIAG.auto:['(belum dijalankan)']),
+    gpuInfo()
   ];
   return lines.join('\n');
 }
@@ -2713,6 +2717,51 @@ function diagCopy(){
   else if(ok) toastDiag('Laporan tersalin — paste ke chat'); else prompt('Salin laporan ini:',txt);
 }
 function toastDiag(t){ const d=document.createElement('div'); d.className='dgToast'; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.remove(),2200); }
+
+/* ---------- tes otomatis: ukur tiap jenis efek sendiri-sendiri ---------- */
+function gpuInfo(){
+  try{ const c=document.createElement('canvas'), g=c.getContext('webgl')||c.getContext('experimental-webgl'); if(!g) return 'webgl: tidak ada';
+    const e=g.getExtension('WEBGL_debug_renderer_info'); return 'GPU: '+(e?g.getParameter(e.UNMASKED_RENDERER_WEBGL)+' / '+g.getParameter(e.UNMASKED_VENDOR_WEBGL):g.getParameter(g.RENDERER)); }catch(e){ return 'gpu? '+e.message; }
+}
+DIAG.auto=[];
+async function diagAuto(){
+  $('set').classList.remove('on');
+  if(!game||$('start').classList.contains('on')){ $('start').classList.remove('on'); startMode('classic'); await new Promise(r=>setTimeout(r,800)); }
+  const saved=game.board.slice(), prevOff=DIAG.off; DIAG.off={sfx:1,playSnd:1,vib:1};
+  const banner=document.createElement('div'); banner.className='dgToast'; banner.style.bottom='auto'; banner.style.top='40%'; document.body.appendChild(banner);
+  const g=gRect(), cx=g.left+g.width/2, cy=g.top+g.height/2;
+  const measure=(ms)=>new Promise(res=>{ const d=[]; let prev=performance.now(); const t0=prev;
+    const loop=now=>{ d.push(now-prev); prev=now; if(now-t0<ms) requestAnimationFrame(loop); else res(d.slice(2)); }; requestAnimationFrame(loop); });
+  const stat=(name,d)=>{ const s=[...d].sort((a,b)=>a-b), avg=d.reduce((a,b)=>a+b,0)/d.length;
+    return `${name.padEnd(14)} rata2 ${avg.toFixed(1)}ms · p90 ${s[Math.floor(s.length*.9)].toFixed(0)} · max ${s[s.length-1].toFixed(0)} · patah ${d.filter(x=>x>34).length}/${d.length}`; };
+  const fill=()=>{ for(let k=0;k<64;k++) game.board[k]=(k%4)+1; renderBoard(); };
+  const tests=[
+    ['diam',()=>null],
+    ['kotak kecil',()=>{ const el=document.createElement('div'); el.style.cssText='position:fixed;left:10px;top:120px;width:40px;height:40px;background:#f0f;z-index:300;will-change:transform';
+       document.body.appendChild(el); el.animate([{transform:'translateX(0)'},{transform:'translateX(200px)'}],{duration:700,iterations:Infinity,direction:'alternate'}); return ()=>el.remove(); }],
+    ['ganti teks',()=>{ let n=0; const el=$('score'); const t=setInterval(()=>{ el.textContent=String(n++); },16); return ()=>{ clearInterval(t); renderScore(0); }; }],
+    ['papan pecah',()=>{ fill(); const t=setInterval(()=>{ const r=Math.floor(Math.random()*8); for(let c=0;c<8;c++) clearing.set(r*8+c,{col:(c%4)+1,delay:c*25,hue:null});
+       renderBoard(); setTimeout(()=>{ clearing.clear(); renderBoard(); },650); },700); return ()=>{ clearInterval(t); clearing.clear(); }; }],
+    ['partikel',()=>{ const t=setInterval(()=>{ const sz=g.width/8; for(let i=0;i<8;i++) burstCell(cx+(Math.random()-.5)*g.width,cy+(Math.random()-.5)*g.height,sz,blockCols(1+i%4),0,1); },300); return ()=>clearInterval(t); }],
+    ['shake',()=>{ const t=setInterval(()=>shake(2),500); return ()=>clearInterval(t); }],
+    ['flash',()=>{ const t=setInterval(()=>screenFlash(),500); return ()=>clearInterval(t); }],
+    ['teks pujian',()=>{ const t=setInterval(()=>showText('<span>Amazing!</span>','p1 praise amazing'),700); return ()=>clearInterval(t); }],
+    ['angka +poin',()=>{ const t=setInterval(()=>popPts(cx,cy,120,false),250); return ()=>clearInterval(t); }],
+    ['tray',()=>{ const t=setInterval(()=>{ slots.forEach(s=>s._pc=null); renderTray(true); },400); return ()=>clearInterval(t); }],
+    ['sinar+cincin',()=>{ const t=setInterval(()=>{ beam('r',Math.floor(Math.random()*8),g.width/8,true); ring(cx,cy,30,'#fff',6); },400); return ()=>clearInterval(t); }],
+  ];
+  const out=[gpuInfo(),`DPR ${devicePixelRatio} · viewport ${innerWidth}x${innerHeight}`];
+  for(const [name,fn] of tests){
+    banner.textContent='Tes: '+name+' … jangan sentuh layar';
+    let stop=null; try{ stop=fn(); }catch(e){ out.push(name+' error '+e.message); continue; }
+    const d=await measure(3500); try{ stop&&stop(); }catch(e){}
+    out.push(stat(name,d)); await new Promise(r=>setTimeout(r,500));
+  }
+  game.board.set(saved); renderBoard(); renderTray(); DIAG.off=prevOff;
+  DIAG.auto=out; banner.remove(); toastDiag('Tes selesai — buka Pengaturan → Salin laporan');
+}
+$('dgAuto').onclick=()=>diagAuto();
+
 $('dgCopy').onclick=diagCopy;
 diagStart();
 
