@@ -530,6 +530,11 @@ body.ultra .score.bump{animation:none}
   .score{font-size:clamp(48px,7dvh,72px)}
   #vsBar{min-height:90px}
 }
+
+/* shake jadi biang lag: papan dijadikan layer GPU permanen sejak awal,
+   jadi saat goyang tidak perlu digambar ulang (dulu ±70ms tiap shake di Mali-G68) */
+.frame{will-change:transform;transform:translateZ(0)}
+#flashOv{will-change:opacity}
 </style>
 </head>
 <body data-w="0">
