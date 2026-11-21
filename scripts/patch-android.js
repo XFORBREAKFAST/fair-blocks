@@ -24,9 +24,8 @@ for (const p of perms) {
     xml = xml.replace('</manifest>', `    <uses-permission android:name="${p}" />\n</manifest>`);
   }
 }
-if (!xml.includes('screenOrientation')) {
-  xml = xml.replace('<activity', '<activity\n            android:screenOrientation="portrait"');
-}
+// orientasi diatur di MainActivity (HP potret, tablet bebas putar)
+xml = xml.replace(/\s*android:screenOrientation="[^"]*"/, '');
 fs.writeFileSync(mf, xml);
 console.log('manifest patched');
 
@@ -46,3 +45,12 @@ function copyDir(src, dst) {
 }
 copyDir('android-res', resDir);
 console.log('icons + splash copied');
+
+// ---- versi naik tiap build → APK baru bisa dipasang menimpa yang lama ----
+const gradle = path.join('android', 'app', 'build.gradle');
+let g = fs.readFileSync(gradle, 'utf8');
+const run = parseInt(process.env.GITHUB_RUN_NUMBER || '1', 10);
+g = g.replace(/versionCode\s+\d+/, 'versionCode ' + (100 + run));
+g = g.replace(/versionName\s+"[^"]*"/, 'versionName "1.' + run + '"');
+fs.writeFileSync(gradle, g);
+console.log('version set', 100 + run);

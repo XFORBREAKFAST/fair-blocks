@@ -27,8 +27,13 @@ jobs:
       - name: Siapkan proyek Android
         run: |
           npx cap add android
-          node scripts/patch-android.js
+          GITHUB_RUN_NUMBER=${{ github.run_number }} node scripts/patch-android.js
           npx cap sync android
+
+      - name: Pakai kunci tanda tangan tetap (biar update tanpa uninstall)
+        run: |
+          mkdir -p ~/.android
+          cp signing/debug.keystore ~/.android/debug.keystore
 
       - name: Build APK
         working-directory: android
